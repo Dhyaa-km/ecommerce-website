@@ -1,5 +1,7 @@
 import { Request, Response } from "express";
 import { loginUser, registerUser, refreshAccessToken } from "./auth.service.js";
+import { prisma } from "../../lib/prisma.js";
+import { AuthRequest } from "../../middleware/auth.middleware.js";
 
 export const register = async (req: Request, res: Response) => {
   try {
@@ -94,4 +96,35 @@ export const logout = async (_req: Request, res: Response) => {
   return res.status(200).json({
     message: "Logged out successfully",
   });
+};
+
+export const getMe = async (req: AuthRequest, res: Response) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user!.userId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        createdAt: true,
+      },
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found",
+      });
+    }
+
+    return res.status(200).json({
+      user,
+    });
+  } catch (error) {
+    console.error(error);
+
+    return res.status(500).json({
+      message: "Internal server error",
+    });
+  }
 };
