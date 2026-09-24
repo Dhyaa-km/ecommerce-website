@@ -40,22 +40,6 @@ export const registerUser = async (
   return user;
 };
 
-const generateAccessToken = (userId: number, role: string) => {
-  return jwt.sign(
-    { userId, role },
-    accessSecret,
-    { expiresIn: accessExpiresIn }
-  );
-};
-
-const generateRefreshToken = (userId: number) => {
-  return jwt.sign(
-    { userId },
-    refreshSecret,
-    { expiresIn: refreshExpiresIn }
-  );
-};
-
 export const loginUser = async (
   email: string,
   password: string
@@ -94,4 +78,55 @@ export const loginUser = async (
     accessToken,
     refreshToken,
   };
+};
+
+const generateAccessToken = (userId: number, role: string) => {
+  return jwt.sign(
+    { userId, role },
+    accessSecret,
+    { expiresIn: accessExpiresIn }
+  );
+};
+
+const generateRefreshToken = (userId: number) => {
+  return jwt.sign(
+    { userId },
+    refreshSecret,
+    { expiresIn: refreshExpiresIn }
+  );
+};
+
+export const refreshAccessToken = async (refreshToken: string) => {
+  try {
+    const decoded = jwt.verify(
+      refreshToken,
+      refreshSecret
+    ) as { userId: number };
+
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+      },
+    });
+
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    const accessToken = generateAccessToken(
+      user.id,
+      user.role
+    );
+
+    return {
+      user,
+      accessToken,
+    };
+  } catch {
+    throw new Error("Invalid refresh token");
+  }
 };

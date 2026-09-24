@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { loginUser, registerUser } from "./auth.service.js";
+import { loginUser, registerUser, refreshAccessToken } from "./auth.service.js";
 
 export const register = async (req: Request, res: Response) => {
   try {
@@ -32,7 +32,17 @@ export const login = async (req: Request, res: Response) => {
 
     const result = await loginUser(email, password);
 
-    return res.status(200).json(result);
+    res.cookie("refreshToken", result.refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
+    return res.status(200).json({
+      user: result.user,
+      accessToken: result.accessToken,
+    });
   } catch (error) {
     if (
       error instanceof Error &&
@@ -51,3 +61,37 @@ export const login = async (req: Request, res: Response) => {
   }
 };
 
+export const refresh = async (req: Request, res: Response) => {
+  try {
+    const refreshToken = req.cookies.refreshToken;
+
+    if (!refreshToken) {
+      return res.status(401).json({
+        message: "Refresh token required",
+      });
+    }
+
+    const result = await refreshAccessToken(refreshToken);
+
+    return res.status(200).json(result);
+  } catch (error) {
+    return res.status(401).json({
+      message:
+        error instanceof Error
+          ? error.message
+          : "Invalid refresh token",
+    });
+  }
+};
+
+export const logout = async (_req: Request, res: Response) => {
+  res.clearCookie("refreshToken", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+  });
+
+  return res.status(200).json({
+    message: "Logged out successfully",
+  });
+};
