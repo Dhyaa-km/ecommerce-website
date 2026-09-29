@@ -559,10 +559,6 @@ export type NullableStringFieldUpdateOperationsInput = {
   set?: string | null
 }
 
-export type BoolFieldUpdateOperationsInput = {
-  set?: boolean
-}
-
 export type ProductCreateNestedOneWithoutCartItemsInput = {
   create?: Prisma.XOR<Prisma.ProductCreateWithoutCartItemsInput, Prisma.ProductUncheckedCreateWithoutCartItemsInput>
   connectOrCreate?: Prisma.ProductCreateOrConnectWithoutCartItemsInput

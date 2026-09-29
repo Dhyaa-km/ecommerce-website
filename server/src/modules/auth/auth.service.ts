@@ -52,6 +52,10 @@ export const loginUser = async (
     throw new Error("Invalid email or password");
   }
 
+  if (!user.isActive) {
+    throw new Error("Account is deactivated");
+  }
+
   const passwordMatches = await bcrypt.compare(
     password,
     user.password

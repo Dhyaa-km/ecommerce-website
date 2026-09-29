@@ -54,6 +54,14 @@ export const login = async (req: Request, res: Response) => {
         message: error.message,
       });
     }
+    if (
+      error instanceof Error &&
+      error.message === "Account is deactivated"
+    ) {
+      return res.status(403).json({
+        message: error.message,
+      });
+    }
 
     console.error(error);
 

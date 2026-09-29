@@ -7,6 +7,7 @@ import productRoutes from "./modules/products/product.routes.js";
 import categoryRoutes from "./modules/categories/category.routes.js";
 import cartRoutes from "./modules/cart/cart.routes.js";
 import orderRoutes from "./modules/orders/order.routes.js";
+import userRoutes from "./modules/users/user.routes.js";
 
 const app = express();
 
@@ -30,6 +31,8 @@ app.use("/api/categories", categoryRoutes);
 app.use("/api/cart", cartRoutes);
 //order
 app.use("/api/orders", orderRoutes);
+//user
+app.use("/api/users", userRoutes);
 
 app.get("/api/health", (_req, res) => {
   res.json({
