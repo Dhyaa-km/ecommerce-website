@@ -1,6 +1,6 @@
 import { Response } from "express";
 import { AuthRequest } from "../../middleware/auth.middleware.js";
-import { createOrder, getOrders, getOrderById } from "./order.service.js";
+import { createOrder, getOrders, getOrderById, updateOrderStatus } from "./order.service.js";
 
 export const create = async (
   req: AuthRequest,
@@ -86,6 +86,38 @@ export const getOne = async (
     );
 
     return res.status(200).json({
+      order,
+    });
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message === "Order not found"
+    ) {
+      return res.status(404).json({
+        message: error.message,
+      });
+    }
+
+    console.error(error);
+
+    return res.status(500).json({
+      message: "Internal server error",
+    });
+  }
+};
+
+export const updateStatus = async (
+  req: AuthRequest,
+  res: Response
+) => {
+  try {
+    const order = await updateOrderStatus(
+      Number(req.params.id),
+      req.body.status
+    );
+
+    return res.status(200).json({
+      message: "Order status updated successfully",
       order,
     });
   } catch (error) {

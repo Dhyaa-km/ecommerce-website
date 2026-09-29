@@ -70,9 +70,17 @@ model CartItem {
   @@unique([cartId, productId])
 }
 
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
 model Order {
   id        Int      @id @default(autoincrement())
-  status    String   @default("PENDING")
+  status    OrderStatus   @default(PENDING)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

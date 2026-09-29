@@ -122,3 +122,27 @@ export const getOrderById = async (
 
   return order;
 };
+
+export const updateOrderStatus = async (
+  orderId: number,
+  status: string
+) => {
+  const order = await prisma.order.findUnique({
+    where: {
+      id: orderId,
+    },
+  });
+
+  if (!order) {
+    throw new Error("Order not found");
+  }
+
+  return prisma.order.update({
+    where: {
+      id: orderId,
+    },
+    data: {
+      status: status as "PENDING" | "CONFIRMED" | "SHIPPED" | "DELIVERED" | "CANCELLED",
+    },
+  });
+};
