@@ -44,21 +44,66 @@ export const createProduct = async (data: CreateProductData) => {
   return product;
 };
 
-export const getProducts = async () => {
-  const products = await prisma.product.findMany(
-    {
-      where: {
-      isActive: true,
-    },
-      include: {
+export const getProducts = async (search?: string, categoryId?: number, limit = 10, page = 1, minPrice?: number,
+  maxPrice?: number,) => {
+
+  const where = {
+    isActive: true,
+
+    ...(search
+      ? {
+          name: {
+            contains: search,
+            mode: "insensitive" as const,
+          },
+        }
+      : {}),
+
+    ...(categoryId
+      ? {
+          categoryId,
+        }
+      : {}),
+
+    ...(minPrice !== undefined || maxPrice !== undefined
+      ? {
+          price: {
+            ...(minPrice !== undefined ? { gte: minPrice } : {}),
+            ...(maxPrice !== undefined ? { lte: maxPrice } : {}),
+          },
+        }
+      : {}),
+  };
+
+ const [products, total] = await prisma.$transaction([
+  prisma.product.findMany({
+    where,
+
+    skip: (page - 1) * limit,
+    take: limit,
+
+    include: {
       category: true,
     },
-      orderBy: {
+
+    orderBy: {
       createdAt: "desc",
     },
-  });
+  }),
 
-  return products;
+  prisma.product.count({
+    where,
+  }),
+]);
+  return {
+    products,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+    },
+  };
 };
 
 export const getProductById = async (id: number) => {
