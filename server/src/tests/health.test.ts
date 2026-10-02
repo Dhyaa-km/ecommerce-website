@@ -1,0 +1,14 @@
+import { describe, it, expect } from "vitest";
+import request from "supertest";
+import app from "../app.js";
+
+describe("GET /api/health", () => {
+  it("should return API health message", async () => {
+    const response = await request(app).get("/api/health");
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      message: "E-commerce API is running",
+    });
+  });
+});
