@@ -1,4 +1,5 @@
 import { prisma } from "../../lib/prisma.js";
+import { Prisma } from "../../generated/client.js";
 
 export const createCategory = async (name: string) => {
   const existingCategory = await prisma.category.findUnique({
@@ -9,11 +10,24 @@ export const createCategory = async (name: string) => {
     throw new Error("Category already exists");
   }
 
-  const category = await prisma.category.create({
-    data: {
-      name,
-    },
-  });
+  let category;
+
+  try {
+    category = await prisma.category.create({
+      data: {
+        name,
+      },
+    });
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      throw new Error("Category already exists");
+    }
+
+    throw error;
+  }
 
   return category;
 };

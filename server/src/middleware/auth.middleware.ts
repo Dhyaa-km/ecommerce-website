@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { env } from "../config/env.js";
+import { prisma } from "../lib/prisma.js";
 
 export interface AuthRequest extends Request {
   user?: {
@@ -9,7 +10,7 @@ export interface AuthRequest extends Request {
   };
 }
 
-export const authenticate = (
+export const authenticate = async (
   req: AuthRequest,
   res: Response,
   next: NextFunction
@@ -31,11 +32,36 @@ export const authenticate = (
     ) as {
       userId: number;
       role: string;
+      authVersion: number;
     };
+
+    if (
+      !Number.isInteger(decoded.userId) ||
+      !Number.isInteger(decoded.authVersion)
+    ) {
+      throw new Error("Invalid access token");
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: {
+        isActive: true,
+        role: true,
+        authVersion: true,
+      },
+    });
+
+    if (
+      !user ||
+      !user.isActive ||
+      user.authVersion !== decoded.authVersion
+    ) {
+      throw new Error("Invalid access token");
+    }
 
     req.user = {
       userId: decoded.userId,
-      role: decoded.role,
+      role: user.role,
     };
 
     next();

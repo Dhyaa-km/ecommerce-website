@@ -3,6 +3,7 @@ import { get , add , update , remove} from "./cart.controller.js";
 import { authenticate } from "../../middleware/auth.middleware.js";
 import { validate } from "../../middleware/validate.js";
 import { addToCartSchema, updateCartItemSchema } from "./cart.validator.js";
+import { validatePositiveIntParam } from "../../middleware/validate-param.middleware.js";
 
 const router = Router();
 
@@ -16,12 +17,14 @@ router.post(
 router.put(
   "/items/:itemId",
   authenticate,
+  validatePositiveIntParam("itemId"),
   validate(updateCartItemSchema),
   update
 );
 router.delete(
   "/items/:itemId",
   authenticate,
+  validatePositiveIntParam("itemId"),
   remove
 );
 

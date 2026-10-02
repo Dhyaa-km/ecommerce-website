@@ -19,10 +19,27 @@ model User {
   name      String
   role Role @default(USER)
   isActive  Boolean  @default(true)
+  authVersion Int @default(0)
   createdAt DateTime @default(now())
 
-  cart   Cart?
-  orders Order[]
+  cart     Cart?
+  orders   Order[]
+  sessions RefreshSession[]
+}
+
+model RefreshSession {
+  id         String    @id @default(cuid())
+  tokenHash  String    @unique
+  userId     Int
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 model Category {

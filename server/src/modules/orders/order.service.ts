@@ -1,15 +1,46 @@
 import { prisma } from "../../lib/prisma.js";
 
+type OrderStatus =
+  | "PENDING"
+  | "CONFIRMED"
+  | "SHIPPED"
+  | "DELIVERED"
+  | "CANCELLED";
+
+const validTransitions: Record<OrderStatus, OrderStatus[]> = {
+  PENDING: ["CONFIRMED", "CANCELLED"],
+  CONFIRMED: ["SHIPPED", "CANCELLED"],
+  SHIPPED: ["DELIVERED"],
+  DELIVERED: [],
+  CANCELLED: [],
+};
+
 export const createOrder = async (userId: number) => {
   return prisma.$transaction(async (tx) => {
+    const lockedCarts = await tx.$queryRaw<{ id: number }[]>`
+      SELECT "id"
+      FROM "Cart"
+      WHERE "userId" = ${userId}
+      FOR UPDATE
+    `;
+
+    const lockedCart = lockedCarts[0];
+
+    if (!lockedCart) {
+      throw new Error("Cart not found");
+    }
+
     const cart = await tx.cart.findUnique({
       where: {
-        userId,
+        id: lockedCart.id,
       },
       include: {
         items: {
           include: {
             product: true,
+          },
+          orderBy: {
+            productId: "asc",
           },
         },
       },
@@ -24,15 +55,35 @@ export const createOrder = async (userId: number) => {
     }
 
     for (const item of cart.items) {
-      if (!item.product.isActive) {
-        throw new Error(
-          `Product "${item.product.name}" is no longer available`
-        );
-      }
+      const reservation = await tx.product.updateMany({
+        where: {
+          id: item.productId,
+          isActive: true,
+          stock: {
+            gte: item.quantity,
+          },
+        },
+        data: {
+          stock: {
+            decrement: item.quantity,
+          },
+        },
+      });
 
-      if (item.quantity > item.product.stock) {
+      if (reservation.count !== 1) {
+        const product = await tx.product.findUnique({
+          where: { id: item.productId },
+          select: { isActive: true, name: true },
+        });
+
+        if (!product || !product.isActive) {
+          throw new Error(
+            `Product "${item.product.name}" is no longer available`
+          );
+        }
+
         throw new Error(
-          `Insufficient stock for "${item.product.name}"`
+          `Insufficient stock for "${product.name}"`
         );
       }
     }
@@ -56,19 +107,6 @@ export const createOrder = async (userId: number) => {
         },
       },
     });
-
-    for (const item of cart.items) {
-      await tx.product.update({
-        where: {
-          id: item.productId,
-        },
-        data: {
-          stock: {
-            decrement: item.quantity,
-          },
-        },
-      });
-    }
 
     await tx.cartItem.deleteMany({
       where: {
@@ -127,23 +165,63 @@ export const updateOrderStatus = async (
   orderId: number,
   status: string
 ) => {
-  const order = await prisma.order.findUnique({
-    where: {
-      id: orderId,
-    },
-  });
+  return prisma.$transaction(async (tx) => {
+    // Serialize status changes so concurrent cancellation requests cannot
+    // both restore the same order's stock.
+    const lockedOrders = await tx.$queryRaw<{ id: number }[]>`
+      SELECT "id"
+      FROM "Order"
+      WHERE "id" = ${orderId}
+      FOR UPDATE
+    `;
 
-  if (!order) {
-    throw new Error("Order not found");
-  }
+    if (!lockedOrders[0]) {
+      throw new Error("Order not found");
+    }
 
-  return prisma.order.update({
-    where: {
-      id: orderId,
-    },
-    data: {
-      status: status as "PENDING" | "CONFIRMED" | "SHIPPED" | "DELIVERED" | "CANCELLED",
-    },
+    const order = await tx.order.findUnique({
+      where: { id: orderId },
+      include: {
+        items: true,
+      },
+    });
+
+    if (!order) {
+      throw new Error("Order not found");
+    }
+
+    const nextStatus = status as OrderStatus;
+    const currentStatus = order.status as OrderStatus;
+
+    // Cancellation is idempotent: it returns the existing cancelled order
+    // without restoring stock a second time.
+    if (currentStatus === "CANCELLED" && nextStatus === "CANCELLED") {
+      return tx.order.findUniqueOrThrow({
+        where: { id: order.id },
+      });
+    }
+
+    if (!validTransitions[currentStatus].includes(nextStatus)) {
+      throw new Error("Invalid order status transition");
+    }
+
+    if (nextStatus === "CANCELLED") {
+      for (const item of order.items) {
+        await tx.product.update({
+          where: { id: item.productId },
+          data: {
+            stock: {
+              increment: item.quantity,
+            },
+          },
+        });
+      }
+    }
+
+    return tx.order.update({
+      where: { id: order.id },
+      data: { status: nextStatus },
+    });
   });
 };
 

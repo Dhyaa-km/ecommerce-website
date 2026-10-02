@@ -130,6 +130,15 @@ export const updateStatus = async (
       });
     }
 
+    if (
+      error instanceof Error &&
+      error.message === "Invalid order status transition"
+    ) {
+      return res.status(409).json({
+        message: error.message,
+      });
+    }
+
     console.error(error);
 
     return res.status(500).json({

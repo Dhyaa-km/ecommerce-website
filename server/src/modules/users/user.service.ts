@@ -1,5 +1,6 @@
 import { prisma } from "../../lib/prisma.js";
 import bcrypt from "bcrypt";
+import { Prisma } from "../../generated/client.js";
 interface UpdateUserProfileData {
   name?: string;
   email?: string;
@@ -52,19 +53,30 @@ export const updateUserProfile = async (
     }
   }
 
-  return prisma.user.update({
-    where: {
-      id: userId,
-    },
-    data,
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      role: true,
-      createdAt: true,
-    },
-  });
+  try {
+    return await prisma.user.update({
+      where: {
+        id: userId,
+      },
+      data,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        createdAt: true,
+      },
+    });
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      throw new Error("Email already registered");
+    }
+
+    throw error;
+  }
 };
 
 export const updateUserPassword = async (
@@ -96,13 +108,28 @@ export const updateUserPassword = async (
     12
   );
 
-  await prisma.user.update({
-    where: {
-      id: userId,
-    },
-    data: {
-      password: hashedPassword,
-    },
+  await prisma.$transaction(async (tx) => {
+    await tx.user.update({
+      where: {
+        id: userId,
+      },
+      data: {
+        password: hashedPassword,
+        authVersion: {
+          increment: 1,
+        },
+      },
+    });
+
+    await tx.refreshSession.updateMany({
+      where: {
+        userId,
+        revokedAt: null,
+      },
+      data: {
+        revokedAt: new Date(),
+      },
+    });
   });
 };
 
@@ -126,30 +153,53 @@ export const updateUserStatus = async (
   userId: number,
   isActive: boolean
 ) => {
-  const user = await prisma.user.findUnique({
-    where: {
-      id: userId,
-    },
-  });
+  return prisma.$transaction(async (tx) => {
+    const user = await tx.user.findUnique({
+      where: {
+        id: userId,
+      },
+    });
 
-  if (!user) {
-    throw new Error("User not found");
-  }
+    if (!user) {
+      throw new Error("User not found");
+    }
 
-  return prisma.user.update({
-    where: {
-      id: userId,
-    },
-    data: {
-      isActive,
-    },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      role: true,
-      isActive: true,
-      createdAt: true,
-    },
+    const updatedUser = await tx.user.update({
+      where: {
+        id: userId,
+      },
+      data: {
+        isActive,
+        ...(!isActive
+          ? {
+              authVersion: {
+                increment: 1,
+              },
+            }
+          : {}),
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        isActive: true,
+        createdAt: true,
+      },
+    });
+
+    if (!isActive) {
+      await tx.refreshSession.updateMany({
+        where: {
+          userId,
+          revokedAt: null,
+        },
+        data: {
+          revokedAt: new Date(),
+        },
+      });
+    }
+
+    return updatedUser;
   });
 };

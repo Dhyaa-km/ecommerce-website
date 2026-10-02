@@ -1,7 +1,26 @@
 import { Request, Response } from "express";
-import { loginUser, registerUser, refreshAccessToken } from "./auth.service.js";
+import {
+  loginUser,
+  registerUser,
+  refreshAccessToken,
+  revokeRefreshSession,
+} from "./auth.service.js";
 import { prisma } from "../../lib/prisma.js";
 import { AuthRequest } from "../../middleware/auth.middleware.js";
+import { env, refreshTokenLifetimeMs } from "../../config/env.js";
+
+const refreshCookieOptions = {
+  httpOnly: true,
+  secure: env.NODE_ENV === "production",
+  sameSite: "lax" as const,
+  maxAge: refreshTokenLifetimeMs,
+};
+
+const clearRefreshCookieOptions = {
+  httpOnly: true,
+  secure: env.NODE_ENV === "production",
+  sameSite: "lax" as const,
+};
 
 export const register = async (req: Request, res: Response) => {
   try {
@@ -34,12 +53,7 @@ export const login = async (req: Request, res: Response) => {
 
     const result = await loginUser(email, password);
 
-    res.cookie("refreshToken", result.refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
+    res.cookie("refreshToken", result.refreshToken, refreshCookieOptions);
 
     return res.status(200).json({
       user: result.user,
@@ -72,6 +86,8 @@ export const login = async (req: Request, res: Response) => {
 };
 
 export const refresh = async (req: Request, res: Response) => {
+  res.set("Cache-Control", "no-store");
+
   try {
     const refreshToken = req.cookies.refreshToken;
 
@@ -83,8 +99,15 @@ export const refresh = async (req: Request, res: Response) => {
 
     const result = await refreshAccessToken(refreshToken);
 
-    return res.status(200).json(result);
+    res.cookie("refreshToken", result.refreshToken, refreshCookieOptions);
+
+    return res.status(200).json({
+      user: result.user,
+      accessToken: result.accessToken,
+    });
   } catch (error) {
+    res.clearCookie("refreshToken", clearRefreshCookieOptions);
+
     return res.status(401).json({
       message:
         error instanceof Error
@@ -94,16 +117,29 @@ export const refresh = async (req: Request, res: Response) => {
   }
 };
 
-export const logout = async (_req: Request, res: Response) => {
-  res.clearCookie("refreshToken", {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-  });
+export const logout = async (req: Request, res: Response) => {
+  res.set("Cache-Control", "no-store");
 
-  return res.status(200).json({
-    message: "Logged out successfully",
-  });
+  try {
+    const refreshToken = req.cookies.refreshToken;
+
+    if (refreshToken) {
+      await revokeRefreshSession(refreshToken);
+    }
+
+    res.clearCookie("refreshToken", clearRefreshCookieOptions);
+
+    return res.status(200).json({
+      message: "Logged out successfully",
+    });
+  } catch (error) {
+    console.error(error);
+    res.clearCookie("refreshToken", clearRefreshCookieOptions);
+
+    return res.status(500).json({
+      message: "Internal server error",
+    });
+  }
 };
 
 export const getMe = async (req: AuthRequest, res: Response) => {

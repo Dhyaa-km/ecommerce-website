@@ -4,6 +4,7 @@ import { validate } from "../../middleware/validate.js";
 import { authenticate } from "../../middleware/auth.middleware.js";
 import { authorize } from "../../middleware/role.middleware.js";
 import { createProductSchema, updateProductSchema } from "./product.validator.js";
+import { validatePositiveIntParam } from "../../middleware/validate-param.middleware.js";
 
 const router = Router();
 
@@ -16,12 +17,13 @@ router.post(
   create
 );
 
-router.get("/:id", getOne);
+router.get("/:id", validatePositiveIntParam("id"), getOne);
 
 router.put(
   "/:id",
   authenticate,
   authorize("ADMIN"),
+  validatePositiveIntParam("id"),
   validate(updateProductSchema),
   update
 );
@@ -30,6 +32,7 @@ router.delete(
   "/:id",
   authenticate,
   authorize("ADMIN"),
+  validatePositiveIntParam("id"),
   remove
 );
 

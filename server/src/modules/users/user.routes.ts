@@ -4,6 +4,7 @@ import { authenticate } from "../../middleware/auth.middleware.js";
 import { validate } from "../../middleware/validate.js";
 import { updateUserProfileSchema, updateUserPasswordSchema, updateUserStatusSchema} from "./user.validator.js";
 import { authorize } from "../../middleware/role.middleware.js";
+import { validatePositiveIntParam } from "../../middleware/validate-param.middleware.js";
 
 
 const router = Router();
@@ -39,6 +40,7 @@ router.patch(
   "/:id/status",
   authenticate,
   authorize("ADMIN"),
+  validatePositiveIntParam("id"),
   validate(updateUserStatusSchema),
   updateStatus
 );

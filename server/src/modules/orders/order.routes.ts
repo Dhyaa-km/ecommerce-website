@@ -11,6 +11,7 @@ import {
 import { authenticate } from "../../middleware/auth.middleware.js";
 import { authorize } from "../../middleware/role.middleware.js";
 import { validate } from "../../middleware/validate.js";
+import { validatePositiveIntParam } from "../../middleware/validate-param.middleware.js";
 
 import { updateOrderStatusSchema } from "./order.validator.js";
 
@@ -42,6 +43,7 @@ router.get(
 router.get(
   "/:id",
   authenticate,
+  validatePositiveIntParam("id"),
   getOne
 );
 
@@ -50,6 +52,7 @@ router.patch(
   "/:id/status",
   authenticate,
   authorize("ADMIN"),
+  validatePositiveIntParam("id"),
   validate(updateOrderStatusSchema),
   updateStatus
 );
