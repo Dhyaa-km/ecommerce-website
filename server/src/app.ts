@@ -1,6 +1,8 @@
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import helmet from "helmet";
+import { env } from "./config/env.js";
 
 import authRoutes from "./modules/auth/auth.routes.js";
 import productRoutes from "./modules/products/product.routes.js";
@@ -11,9 +13,11 @@ import userRoutes from "./modules/users/user.routes.js";
 
 const app = express();
 
+app.use(helmet());
+
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: env.CLIENT_URL,
     credentials: true,
   })
 );

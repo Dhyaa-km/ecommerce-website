@@ -1,6 +1,6 @@
 import { Response } from "express";
 import { AuthRequest } from "../../middleware/auth.middleware.js";
-import { createOrder, getOrders, getOrderById, updateOrderStatus } from "./order.service.js";
+import { createOrder, getOrders, getOrderById, updateOrderStatus, getAllOrders } from "./order.service.js";
 
 export const create = async (
   req: AuthRequest,
@@ -54,7 +54,7 @@ export const create = async (
   }
 };
 
-export const getAll = async (
+export const getMyOrders = async (
   req: AuthRequest,
   res: Response
 ) => {
@@ -130,6 +130,26 @@ export const updateStatus = async (
       });
     }
 
+    console.error(error);
+
+    return res.status(500).json({
+      message: "Internal server error",
+    });
+  }
+};
+
+// admin
+export const getAll  = async (
+  _req: AuthRequest,
+  res: Response
+) => {
+  try {
+    const orders = await getAllOrders();
+
+    return res.status(200).json({
+      orders,
+    });
+  } catch (error) {
     console.error(error);
 
     return res.status(500).json({

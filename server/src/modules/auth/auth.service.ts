@@ -1,11 +1,17 @@
 import bcrypt from "bcrypt";
 import jwt, { SignOptions } from "jsonwebtoken";
 import { prisma } from "../../lib/prisma.js";
+import { env } from "../../config/env.js";
 
-const accessSecret = process.env.JWT_ACCESS_SECRET!;
-const refreshSecret = process.env.JWT_REFRESH_SECRET!;
-const accessExpiresIn = process.env.JWT_EXPIRES_IN! as jwt.SignOptions["expiresIn"];
-const refreshExpiresIn = process.env.JWT_REFRESH_EXPIRES_IN! as jwt.SignOptions["expiresIn"];
+const accessSecret = env.JWT_ACCESS_SECRET;
+const refreshSecret = env.JWT_REFRESH_SECRET;
+
+const accessExpiresIn =
+  env.JWT_EXPIRES_IN as jwt.SignOptions["expiresIn"];
+
+const refreshExpiresIn =
+  env.JWT_REFRESH_EXPIRES_IN as jwt.SignOptions["expiresIn"];
+
 
 export const registerUser = async (
   name: string,
@@ -114,11 +120,16 @@ export const refreshAccessToken = async (refreshToken: string) => {
         name: true,
         email: true,
         role: true,
+        isActive: true,
       },
     });
 
     if (!user) {
       throw new Error("User not found");
+    }
+
+    if (!user.isActive) {
+      throw new Error("Account is deactivated");
     }
 
     const accessToken = generateAccessToken(
@@ -130,7 +141,10 @@ export const refreshAccessToken = async (refreshToken: string) => {
       user,
       accessToken,
     };
-  } catch {
+  } catch(error) {
+    if (error instanceof Error && error.message === "Account is deactivated") {
+      throw error;
+    }
     throw new Error("Invalid refresh token");
   }
 };

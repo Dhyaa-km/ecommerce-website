@@ -146,3 +146,26 @@ export const updateOrderStatus = async (
     },
   });
 };
+
+// admin
+export const getAllOrders = async () => {
+  return prisma.order.findMany({
+    include: {
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
+      items: {
+        include: {
+          product: true,
+        },
+      },
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
+};

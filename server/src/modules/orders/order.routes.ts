@@ -1,23 +1,51 @@
 import { Router } from "express";
+
 import {
   create,
-  getAll,
+  getMyOrders,
   getOne,
   updateStatus,
+  getAll,
 } from "./order.controller.js";
+
 import { authenticate } from "../../middleware/auth.middleware.js";
 import { authorize } from "../../middleware/role.middleware.js";
 import { validate } from "../../middleware/validate.js";
+
 import { updateOrderStatusSchema } from "./order.validator.js";
 
 const router = Router();
 
-router.post("/", authenticate, create);
+// Create an order
+router.post(
+  "/",
+  authenticate,
+  create
+);
 
-router.get("/", authenticate, getAll);
+// Admin: get all orders
+router.get(
+  "/",
+  authenticate,
+  authorize("ADMIN"),
+  getAll
+);
 
-router.get("/:id", authenticate, getOne);
+// User: get own orders
+router.get(
+  "/my",
+  authenticate,
+  getMyOrders
+);
 
+// Get one own order
+router.get(
+  "/:id",
+  authenticate,
+  getOne
+);
+
+// Admin: update order status
 router.patch(
   "/:id/status",
   authenticate,

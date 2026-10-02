@@ -4,15 +4,16 @@ import { validate } from "../../middleware/validate.js";
 import { loginSchema, registerSchema } from "./auth.validator.js";
 import { authenticate } from "../../middleware/auth.middleware.js";
 import { authorize } from "../../middleware/role.middleware.js";
-
+import { authRateLimiter } from "../../middleware/auth-rate-limit.middleware.js";
 
 const router = Router();
 
-router.post("/register", validate(registerSchema), register);
-router.post("/login", validate(loginSchema), login);
+router.post("/register", authRateLimiter, validate(registerSchema), register);
+router.post("/login", authRateLimiter, validate(loginSchema), login);
 router.get("/refresh", refresh);
 router.get("/logout", logout);
 router.get("/me", authenticate, getMe);
+
 
 router.get(
   "/admin-test",
