@@ -143,7 +143,6 @@ server/
 ### Testing
 
 - Vitest
-- Supertest
 
 ### Deployment
 
@@ -195,35 +194,7 @@ The database also includes integrity constraints for:
 - Cart item quantity
 - Order item quantity
 
-## Authentication
 
-ShopNest uses a short-lived access token and refresh-token session architecture.
-
-```text
-Login
-  │
-  ├── Access Token
-  │      └── Stored in frontend memory
-  │
-  └── Refresh Token
-         └── HTTP-only cookie
-```
-
-When the access token expires:
-
-```text
-Frontend
-   │
-   ├── API request → 401
-   │
-   └── Refresh request
-          │
-          ├── Validate session
-          ├── Rotate refresh token
-          └── Return new access token
-```
-
-Refresh sessions are stored securely in PostgreSQL using hashed refresh tokens.
 
 ## API Overview
 
@@ -335,17 +306,6 @@ Create a `.env` file:
 
 ```env
 DATABASE_URL="postgresql://postgres:postgres@localhost:5433/ecommerce_db"
-
-JWT_ACCESS_SECRET="your_access_secret"
-JWT_EXPIRES_IN="15m"
-
-JWT_REFRESH_SECRET="your_refresh_secret"
-JWT_REFRESH_EXPIRES_IN="7d"
-
-CLIENT_URL="http://localhost:5173"
-
-PORT=3000
-NODE_ENV="development"
 ```
 
 ### Start PostgreSQL
@@ -423,59 +383,6 @@ Render
 Neon PostgreSQL
 ```
 
-### Frontend
-
-The React application is deployed on Vercel.
-
-Production API configuration:
-
-```env
-VITE_API_BASE_URL=https://ecommerce-website-vkw5.onrender.com/api
-```
-
-### Backend
-
-The Express API is deployed on Render.
-
-Production environment variables include:
-
-```env
-DATABASE_URL=...
-JWT_ACCESS_SECRET=...
-JWT_EXPIRES_IN=15m
-JWT_REFRESH_SECRET=...
-JWT_REFRESH_EXPIRES_IN=7d
-NODE_ENV=production
-CLIENT_URL=https://shopnestt-store.vercel.app
-```
-
-### Database
-
-The production PostgreSQL database is hosted on Neon.
-
-Prisma migrations are deployed using:
-
-```bash
-npx prisma migrate deploy
-```
-
-## Project Goals
-
-This project was built to gain practical experience with:
-
-- Full-stack application architecture
-- REST API development
-- PostgreSQL
-- Prisma ORM
-- Authentication and authorization
-- JWT access and refresh tokens
-- Secure session management
-- Database transactions
-- Concurrent inventory handling
-- Role-based access control
-- API validation
-- React application architecture
-- Production deployment
 
 ## Future Improvements
 
@@ -491,10 +398,3 @@ Potential future improvements include:
 - Advanced product management
 - Order filtering and analytics
 
-## Author
-
-**Dhyaa**
-
-GitHub:
-
-https://github.com/Dhyaa-km
