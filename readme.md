@@ -398,3 +398,6 @@ Potential future improvements include:
 - Advanced product management
 - Order filtering and analytics
 
+## Licence
+
+This project is licensed under the MIT License.
