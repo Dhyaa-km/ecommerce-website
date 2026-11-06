@@ -98,3 +98,60 @@ export const completeMockPayment = async (
     });
   });
 };
+
+export const cancelMockPayment = async (
+  sessionId: string,
+  userId: number
+) => {
+  return prisma.$transaction(async (tx) => {
+    const lockedOrders = await tx.$queryRaw<{ id: number }[]>`
+      SELECT "id"
+      FROM "Order"
+      WHERE "paymentSessionId" = ${sessionId}
+        AND "userId" = ${userId}
+      FOR UPDATE
+    `;
+
+    if (!lockedOrders[0]) {
+      throw new Error("Payment session not found");
+    }
+
+    const order = await tx.order.findUniqueOrThrow({
+      where: { id: lockedOrders[0].id },
+      include: {
+        items: true,
+      },
+    });
+
+    // Repeated cancellation requests are safe.
+    if (order.status === "CANCELLED") {
+      return order;
+    }
+
+    if (
+      order.status !== "PENDING" ||
+      order.paymentStatus !== "UNPAID"
+    ) {
+      throw new Error("Order is not cancellable");
+    }
+
+    // Restore reserved stock.
+    for (const item of order.items) {
+      await tx.product.update({
+        where: { id: item.productId },
+        data: {
+          stock: {
+            increment: item.quantity,
+          },
+        },
+      });
+    }
+
+    return tx.order.update({
+      where: { id: order.id },
+      data: {
+        status: "CANCELLED",
+      },
+    });
+  });
+};

@@ -4,6 +4,7 @@ import {
   create,
   createCheckout,
   confirmMockPayment,
+  cancelMockCheckout,
   getMyOrders,
   getOne,
   updateStatus,
@@ -38,6 +39,13 @@ router.post(
   "/checkout/confirm-mock",
   authenticate,
   confirmMockPayment
+);
+
+// Development only: cancel an unpaid mock checkout
+router.post(
+  "/checkout/cancel-mock",
+  authenticate,
+  cancelMockCheckout
 );
 
 // Admin: get all orders

@@ -201,6 +201,14 @@ export const updateOrderStatus = async (
       });
     }
 
+    // Prevent cancelling paid orders without a refund.
+    if (
+      nextStatus === "CANCELLED" &&
+      order.paymentStatus === "PAID"
+    ) {
+      throw new Error("Paid orders require a refund before cancellation");
+    }
+
     if (!validTransitions[currentStatus].includes(nextStatus)) {
       throw new Error("Invalid order status transition");
     }

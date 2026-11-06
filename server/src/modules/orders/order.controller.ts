@@ -1,7 +1,7 @@
 import { Response } from "express";
 import { AuthRequest } from "../../middleware/auth.middleware.js";
 import { createOrder, getOrders, getOrderById, updateOrderStatus, getAllOrders } from "./order.service.js";
-import { createCheckoutSession, completeMockPayment } from "./payment.service.js";
+import { createCheckoutSession, completeMockPayment, cancelMockPayment } from "./payment.service.js";
 import {env} from "../../config/env.js";
 
 export const create = async (
@@ -141,6 +141,15 @@ export const updateStatus = async (
       });
     }
 
+    if (
+      error instanceof Error &&
+      error.message === "Paid orders require a refund before cancellation"
+    ) {
+      return res.status(409).json({
+        message: error.message,
+      });
+    }
+
     console.error(error);
 
     return res.status(500).json({
@@ -226,6 +235,50 @@ export const confirmMockPayment = async (
       }
 
       if (error.message === "Order is not payable") {
+        return res.status(409).json({ message: error.message });
+      }
+    }
+
+    console.error(error);
+
+    return res.status(500).json({
+      message: "Internal server error",
+    });
+  }
+};
+
+export const cancelMockCheckout = async (
+  req: AuthRequest,
+  res: Response
+) => {
+  try {
+    const { sessionId } = req.body;
+
+    if (
+      typeof sessionId !== "string" ||
+      !sessionId.startsWith("mock_session_")
+    ) {
+      return res.status(400).json({
+        message: "Invalid payment session ID",
+      });
+    }
+
+    const order = await cancelMockPayment(
+      sessionId,
+      req.user!.userId
+    );
+
+    return res.status(200).json({
+      message: "Checkout cancelled successfully",
+      order,
+    });
+  } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === "Payment session not found") {
+        return res.status(404).json({ message: error.message });
+      }
+
+      if (error.message === "Order is not cancellable") {
         return res.status(409).json({ message: error.message });
       }
     }
