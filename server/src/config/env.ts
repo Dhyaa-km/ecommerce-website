@@ -12,6 +12,11 @@ const envSchema = z.object({
   DATABASE_URL: z.string().min(1),
   PORT: z.coerce.number().int().positive(),
   CLIENT_URL: z.string().url(),
+
+  STRIPE_SECRET_KEY: z
+    .string()
+    .startsWith("sk_test_", "STRIPE_SECRET_KEY must be a Stripe test secret key"),
+
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
 
   JWT_ACCESS_SECRET: z
@@ -22,8 +27,11 @@ const envSchema = z.object({
   JWT_REFRESH_SECRET: z
     .string()
     .min(32, "JWT_REFRESH_SECRET must be at least 32 characters long"),
-  JWT_REFRESH_EXPIRES_IN: refreshExpirySchema,
+    JWT_REFRESH_EXPIRES_IN: refreshExpirySchema,
+    
 });
+
+
 
 const result = envSchema.safeParse(process.env);
 

@@ -98,8 +98,12 @@ enum OrderStatus {
 }
 
 model Order {
-  id        Int      @id @default(autoincrement())
-  status    OrderStatus   @default(PENDING)
+  id            Int           @id @default(autoincrement())
+  status        OrderStatus   @default(PENDING)
+  paymentStatus PaymentStatus @default(UNPAID)
+
+  stripeSessionId String? @unique
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -119,4 +123,11 @@ model OrderItem {
 
   order   Order   @relation(fields: [orderId], references: [id])
   product Product @relation(fields: [productId], references: [id])
+}
+
+enum PaymentStatus {
+  UNPAID
+  PAID
+  FAILED
+  REFUNDED
 }
