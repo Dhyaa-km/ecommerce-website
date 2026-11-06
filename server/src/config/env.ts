@@ -13,10 +13,6 @@ const envSchema = z.object({
   PORT: z.coerce.number().int().positive(),
   CLIENT_URL: z.string().url(),
 
-  STRIPE_SECRET_KEY: z
-    .string()
-    .startsWith("sk_test_", "STRIPE_SECRET_KEY must be a Stripe test secret key"),
-
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
 
   JWT_ACCESS_SECRET: z

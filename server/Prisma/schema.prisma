@@ -102,7 +102,7 @@ model Order {
   status        OrderStatus   @default(PENDING)
   paymentStatus PaymentStatus @default(UNPAID)
 
-  stripeSessionId String? @unique
+  paymentSessionId String? @unique
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

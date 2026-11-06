@@ -1,6 +1,8 @@
 import { Response } from "express";
 import { AuthRequest } from "../../middleware/auth.middleware.js";
 import { createOrder, getOrders, getOrderById, updateOrderStatus, getAllOrders } from "./order.service.js";
+import { createCheckoutSession, completeMockPayment } from "./payment.service.js";
+import {env} from "../../config/env.js";
 
 export const create = async (
   req: AuthRequest,
@@ -137,6 +139,95 @@ export const updateStatus = async (
       return res.status(409).json({
         message: error.message,
       });
+    }
+
+    console.error(error);
+
+    return res.status(500).json({
+      message: "Internal server error",
+    });
+  }
+};
+
+export const createCheckout = async (
+  req: AuthRequest,
+  res: Response
+) => {
+  try {
+    const orderId = Number(req.body.orderId);
+
+    if (!Number.isSafeInteger(orderId) || orderId <= 0) {
+      return res.status(400).json({
+        message: "Invalid order ID",
+      });
+    }
+
+    const session = await createCheckoutSession(
+      orderId,
+      req.user!.userId
+    );
+
+    return res.status(200).json({
+      message: "Checkout session created successfully",
+      checkoutUrl: session.checkoutUrl,
+    });
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message === "Order not found or not payable"
+    ) {
+      return res.status(404).json({
+        message: error.message,
+      });
+    }
+
+    console.error(error);
+
+    return res.status(500).json({
+      message: "Internal server error",
+    });
+  }
+};
+
+export const confirmMockPayment = async (
+  req: AuthRequest,
+  res: Response
+) => {
+  try {
+    if (env.NODE_ENV === "production") {
+      return res.status(404).json({
+        message: "Not found",
+      });
+    }
+    const { sessionId } = req.body;
+
+    if (
+      typeof sessionId !== "string" ||
+      !sessionId.startsWith("mock_session_")
+    ) {
+      return res.status(400).json({
+        message: "Invalid payment session ID",
+      });
+    }
+
+    const order = await completeMockPayment(
+      sessionId,
+      req.user!.userId
+    );
+
+    return res.status(200).json({
+      message: "Payment completed successfully",
+      order,
+    });
+  } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === "Payment session not found") {
+        return res.status(404).json({ message: error.message });
+      }
+
+      if (error.message === "Order is not payable") {
+        return res.status(409).json({ message: error.message });
+      }
     }
 
     console.error(error);

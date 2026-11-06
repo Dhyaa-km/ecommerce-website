@@ -2,6 +2,8 @@ import { Router } from "express";
 
 import {
   create,
+  createCheckout,
+  confirmMockPayment,
   getMyOrders,
   getOne,
   updateStatus,
@@ -22,6 +24,20 @@ router.post(
   "/",
   authenticate,
   create
+);
+
+// Create a checkout session
+router.post(
+  "/checkout",
+  authenticate,
+  createCheckout
+);
+
+// Development only: simulate successful payment
+router.post(
+  "/checkout/confirm-mock",
+  authenticate,
+  confirmMockPayment
 );
 
 // Admin: get all orders

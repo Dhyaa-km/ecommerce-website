@@ -151,6 +151,8 @@ export type CartItemScalarFieldEnum = (typeof CartItemScalarFieldEnum)[keyof typ
 export const OrderScalarFieldEnum = {
   id: 'id',
   status: 'status',
+  paymentStatus: 'paymentStatus',
+  paymentSessionId: 'paymentSessionId',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt',
   userId: 'userId'
