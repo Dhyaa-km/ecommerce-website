@@ -103,6 +103,7 @@ model Order {
   paymentStatus PaymentStatus @default(UNPAID)
 
   paymentSessionId String? @unique
+  paymentExpiresAt  DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

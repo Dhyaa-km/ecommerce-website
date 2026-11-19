@@ -183,6 +183,15 @@ export const createCheckout = async (
   } catch (error) {
     if (
       error instanceof Error &&
+      error.message === "Checkout session already exists"
+    ) {
+      return res.status(409).json({
+        message: error.message,
+      });
+    }
+    
+    if (
+      error instanceof Error &&
       error.message === "Order not found or not payable"
     ) {
       return res.status(404).json({
@@ -252,6 +261,11 @@ export const cancelMockCheckout = async (
   res: Response
 ) => {
   try {
+    if (env.NODE_ENV === "production") {
+      return res.status(404).json({
+        message: "Not found",
+      });
+    }
     const { sessionId } = req.body;
 
     if (

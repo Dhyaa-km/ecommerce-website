@@ -91,6 +91,7 @@ export const createOrder = async (userId: number) => {
     const order = await tx.order.create({
       data: {
         userId,
+        paymentExpiresAt: new Date(Date.now() + 30 * 60 * 1000),
         items: {
           create: cart.items.map((item) => ({
             productId: item.productId,

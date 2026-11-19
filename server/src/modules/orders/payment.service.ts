@@ -1,59 +1,80 @@
 import { prisma } from "../../lib/prisma.js";
 import { MockPaymentProvider } from "./mock-payment.provider.js";
+import { env } from "../../config/env.js";
 
 
 const paymentProvider = new MockPaymentProvider();
+
+
 
 export const createCheckoutSession = async (
   orderId: number,
   userId: number
 ) => {
-  const order = await prisma.order.findFirst({
-    where: {
-      id: orderId,
-      userId,
-      status: "PENDING",
-      paymentStatus: "UNPAID",
-    },
-    include: {
-      items: true,
-    },
+  return prisma.$transaction(async (tx) => {
+    // Lock the order so simultaneous checkout requests
+    // cannot create multiple sessions.
+    const lockedOrders = await tx.$queryRaw<{ id: number }[]>`
+      SELECT "id"
+      FROM "Order"
+      WHERE "id" = ${orderId}
+        AND "userId" = ${userId}
+      FOR UPDATE
+    `;
+
+    if (!lockedOrders[0]) {
+      throw new Error("Order not found or not payable");
+    }
+
+    const order = await tx.order.findUnique({
+      where: { id: orderId },
+      include: { items: true },
+    });
+
+    if (
+      !order ||
+      order.status !== "PENDING" ||
+      order.paymentStatus !== "UNPAID" ||
+      !order.paymentExpiresAt ||
+      order.paymentExpiresAt <= new Date()
+    ) {
+      throw new Error("Order not found or not payable");
+    }
+
+    if (order.paymentSessionId) {
+      throw new Error("Checkout session already exists");
+    }
+
+    const amount = order.items.reduce(
+      (total, item) =>
+        total +
+        Math.round(Number(item.unitPrice) * 100) * item.quantity,
+      0
+    );
+
+    if (amount <= 0) {
+      throw new Error("Invalid order amount");
+    }
+
+    const session = await paymentProvider.createCheckoutSession({
+      orderId: order.id,
+      amount,
+      currency: "usd",
+      successUrl: `${env.CLIENT_URL}/checkout/success`,
+      cancelUrl: `${env.CLIENT_URL}/checkout/cancel`,
+    });
+
+    await tx.order.update({
+      where: { id: order.id },
+      data: {
+        paymentSessionId: session.id,
+      },
+    });
+
+    return {
+      checkoutUrl: session.url,
+    };
   });
-
-  if (!order) {
-    throw new Error("Order not found or not payable");
-  }
-
-  const amount = order.items.reduce(
-    (total, item) =>
-      total + Math.round(Number(item.unitPrice) * 100) * item.quantity,
-    0
-  );
-
-  if (amount <= 0) {
-    throw new Error("Invalid order amount");
-  }
-
-  const session = await paymentProvider.createCheckoutSession({
-    orderId: order.id,
-    amount,
-    currency: "usd",
-    successUrl: `${process.env.CLIENT_URL}/checkout/success`,
-    cancelUrl: `${process.env.CLIENT_URL}/checkout/cancel`,
-  });
-
-  await prisma.order.update({
-    where: {
-      id: order.id,
-    },
-    data: {
-      paymentSessionId: session.id,
-    },
-  });
-
-  return {
-    checkoutUrl: session.url,
-  };
 };
 
 export const completeMockPayment = async (
@@ -83,11 +104,13 @@ export const completeMockPayment = async (
     }
 
     if (
-      order.status !== "PENDING" ||
-      order.paymentStatus !== "UNPAID"
-    ) {
-      throw new Error("Order is not payable");
-    }
+    order.status !== "PENDING" ||
+    order.paymentStatus !== "UNPAID" ||
+    !order.paymentExpiresAt ||
+    order.paymentExpiresAt <= new Date()
+  ) {
+    throw new Error("Order is not payable");
+  }
 
     return tx.order.update({
       where: { id: order.id },
@@ -153,5 +176,52 @@ export const cancelMockPayment = async (
         status: "CANCELLED",
       },
     });
+  });
+};
+
+export const expirePendingOrders = async () => {
+  return prisma.$transaction(async (tx) => {
+    const expiredOrders = await tx.$queryRaw<{ id: number }[]>`
+      SELECT "id"
+      FROM "Order"
+      WHERE "status" = 'PENDING'
+        AND "paymentStatus" = 'UNPAID'
+        AND "paymentExpiresAt" <= NOW()
+      ORDER BY "id"
+      FOR UPDATE SKIP LOCKED
+    `;
+
+    let expiredCount = 0;
+
+    for (const { id } of expiredOrders) {
+      const order = await tx.order.findUnique({
+        where: { id },
+        include: { items: true },
+      });
+
+      if (!order) continue;
+
+      for (const item of order.items) {
+        await tx.product.update({
+          where: { id: item.productId },
+          data: {
+            stock: {
+              increment: item.quantity,
+            },
+          },
+        });
+      }
+
+      await tx.order.update({
+        where: { id },
+        data: {
+          status: "CANCELLED",
+        },
+      });
+
+      expiredCount++;
+    }
+
+    return expiredCount;
   });
 };
