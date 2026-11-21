@@ -10,6 +10,9 @@ import { ProductsPage } from '../pages/ProductsPage';
 import { ProductDetailPage } from '../pages/ProductDetailPage';
 import { CartPage } from '../pages/CartPage';
 import { CheckoutPage } from '../pages/CheckoutPage';
+import { MockPaymentPage } from '../pages/MockPaymentPage';
+import { CheckoutSuccessPage } from '../pages/CheckoutSuccessPage';
+import { CheckoutCancelPage } from '../pages/CheckoutCancelPage';
 import { OrdersPage } from '../pages/OrdersPage';
 import { OrderDetailPage } from '../pages/OrderDetailPage';
 import { ProfilePage } from '../pages/ProfilePage';
@@ -40,6 +43,38 @@ export const router = createBrowserRouter([
         element: (
           <ProtectedRoute>
             <CheckoutPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'checkout/payment',
+        element: (
+          <ProtectedRoute>
+            <MockPaymentPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'checkout/mock-payment',
+        element: (
+          <ProtectedRoute>
+            <MockPaymentPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'checkout/success',
+        element: (
+          <ProtectedRoute>
+            <CheckoutSuccessPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'checkout/cancel',
+        element: (
+          <ProtectedRoute>
+            <CheckoutCancelPage />
           </ProtectedRoute>
         ),
       },
